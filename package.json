@@ -1,0 +1,21 @@
+{
+  "name": "pi-web-browse",
+  "version": "1.0.0",
+  "description": "Web browsing tools for pi - fetch pages and search the web",
+  "keywords": ["pi-package", "web", "browse", "search", "fetch"],
+  "license": "MIT",
+  "dependencies": {
+    "turndown": "^7.2.0",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
+  "pi": {
+    "extensions": ["./extensions"],
+    "prompts": ["./prompts"]
+  }
+}
