@@ -21,19 +21,90 @@ import { Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+const require = createRequire(import.meta.url);
+
+type TurndownConstructor = typeof import("turndown")["default"];
+type CheerioModule = typeof import("cheerio");
+
 // Lazy-loaded dependencies
-let TurndownService: typeof import("turndown")["default"] | undefined;
-let cheerio: typeof import("cheerio") | undefined;
+let TurndownService: TurndownConstructor | undefined;
+let cheerio: CheerioModule | undefined;
+
+function resolveTurndownService(mod: unknown, seen = new Set<unknown>()): TurndownConstructor | undefined {
+	if (!mod || seen.has(mod)) {
+		return undefined;
+	}
+	if (typeof mod === "function") {
+		return mod as TurndownConstructor;
+	}
+	if (typeof mod !== "object") {
+		return undefined;
+	}
+
+	seen.add(mod);
+	const candidate = mod as Record<string, unknown>;
+	return resolveTurndownService(candidate.default, seen)
+		?? resolveTurndownService(candidate.TurndownService, seen);
+}
+
+function resolveCheerioModule(mod: unknown, seen = new Set<unknown>()): CheerioModule | undefined {
+	if (!mod || seen.has(mod)) {
+		return undefined;
+	}
+	if (typeof mod === "object" && "load" in mod && typeof (mod as { load?: unknown }).load === "function") {
+		return mod as CheerioModule;
+	}
+	if (typeof mod !== "object") {
+		return undefined;
+	}
+
+	seen.add(mod);
+	const candidate = mod as Record<string, unknown>;
+	return resolveCheerioModule(candidate.default, seen);
+}
 
 async function loadLocalDeps() {
 	if (!TurndownService) {
-		({ default: TurndownService } = await import("turndown"));
+		let resolved: TurndownConstructor | undefined;
+		try {
+			resolved = resolveTurndownService(await import("turndown"));
+		} catch {
+			// Fall back to require() below.
+		}
+		if (!resolved) {
+			try {
+				resolved = resolveTurndownService(require("turndown"));
+			} catch {
+				// Ignore and throw a clearer error below.
+			}
+		}
+		if (!resolved) {
+			throw new Error("Failed to load turndown");
+		}
+		TurndownService = resolved;
 	}
 	if (!cheerio) {
-		cheerio = await import("cheerio");
+		let resolved: CheerioModule | undefined;
+		try {
+			resolved = resolveCheerioModule(await import("cheerio"));
+		} catch {
+			// Fall back to require() below.
+		}
+		if (!resolved) {
+			try {
+				resolved = resolveCheerioModule(require("cheerio"));
+			} catch {
+				// Ignore and throw a clearer error below.
+			}
+		}
+		if (!resolved) {
+			throw new Error("Failed to load cheerio");
+		}
+		cheerio = resolved;
 	}
 }
 
