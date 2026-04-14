@@ -1,6 +1,6 @@
 {
   "name": "pi-web-browse",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Web browsing tools for pi - fetch pages and search the web",
   "keywords": [
     "pi-package",
@@ -10,6 +10,17 @@
     "fetch"
   ],
   "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "extensions/**/*.ts",
+    "lib/**/*.ts",
+    "!**/*.test.ts",
+    "prompts/**/*",
+    "README.md"
+  ],
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
     "turndown": "^7.2.0"
