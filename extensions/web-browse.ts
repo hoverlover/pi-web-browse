@@ -25,12 +25,12 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 // Lazy-loaded dependencies
-let TurndownService: typeof import("turndown") | undefined;
+let TurndownService: typeof import("turndown")["default"] | undefined;
 let cheerio: typeof import("cheerio") | undefined;
 
 async function loadLocalDeps() {
 	if (!TurndownService) {
-		TurndownService = await import("turndown");
+		({ default: TurndownService } = await import("turndown"));
 	}
 	if (!cheerio) {
 		cheerio = await import("cheerio");
