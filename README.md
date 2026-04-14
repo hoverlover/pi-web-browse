@@ -12,19 +12,8 @@ Web browsing tools for [pi](https://shittycodingagent.ai) — fetch pages and se
 
 ## Installation
 
-### From npm (when published)
 ```bash
-pi install npm:pi-web-browse
-```
-
-### From local path
-```bash
-pi install /path/to/pi-web-browse
-```
-
-### From git
-```bash
-pi install git:github.com/yourusername/pi-web-browse
+pi install git:github.com/hoverlover/pi-web-browse
 ```
 
 ## Tools
