@@ -114,6 +114,12 @@ async function loadLocalDeps() {
 
 let cachedFirecrawlKey: string | undefined | null = null;
 
+export function resetTestState() {
+	TurndownService = undefined;
+	cheerio = undefined;
+	cachedFirecrawlKey = null;
+}
+
 interface WebBrowseConfig {
 	firecrawlApiKey?: string;
 }
@@ -154,7 +160,7 @@ async function getFirecrawlApiKey(): Promise<string | undefined> {
 	return undefined;
 }
 
-async function hasFirecrawlKey(): Promise<boolean> {
+export async function hasFirecrawlKey(): Promise<boolean> {
 	const key = await getFirecrawlApiKey();
 	return !!key;
 }
@@ -180,7 +186,7 @@ interface FirecrawlResponse {
 /**
  * Fetch page using Firecrawl API for superior extraction
  */
-async function fetchWithFirecrawl(
+export async function fetchWithFirecrawl(
 	url: string,
 	format: "markdown" | "text" | "html",
 	signal: AbortSignal | undefined,
@@ -252,7 +258,7 @@ async function fetchWithFirecrawl(
 /**
  * Extract readable text content from HTML using heuristics
  */
-function extractReadableText($: cheerio.CheerioAPI): string {
+export function extractReadableText($: cheerio.CheerioAPI): string {
 	// Remove script, style, nav, footer, aside, and hidden elements
 	$("script, style, nav, footer, aside, [hidden], [aria-hidden='true']").remove();
 
@@ -307,7 +313,7 @@ function extractReadableText($: cheerio.CheerioAPI): string {
 /**
  * Convert HTML to markdown locally
  */
-function htmlToMarkdownLocal(html: string, url: string): string {
+export function htmlToMarkdownLocal(html: string, url: string): string {
 	const $ = cheerio!.load(html);
 
 	// Extract title
@@ -346,7 +352,7 @@ function htmlToMarkdownLocal(html: string, url: string): string {
 	return `# ${pageTitle}\n\nSource: ${url}\n\n---\n\n${markdown}`;
 }
 
-async function fetchWebPageLocal(
+export async function fetchWebPageLocal(
 	url: string,
 	format: "markdown" | "text" | "html",
 	selector: string | undefined,
@@ -365,6 +371,23 @@ async function fetchWebPageLocal(
 
 	if (!response.ok) {
 		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+	}
+
+	const contentType = response.headers.get("content-type") || "";
+	const mime = contentType.split(";")[0].trim().toLowerCase();
+	const supportedTypes = new Set([
+		"text/html",
+		"application/xhtml+xml",
+		"application/xml",
+		"text/xml",
+		"text/plain",
+		"text/markdown",
+		"text/x-markdown",
+	]);
+	if (!supportedTypes.has(mime)) {
+		throw new Error(
+			`Unsupported content type: ${mime}. web_fetch only supports HTML, markdown, XML, and plain text pages (got ${mime}).`,
+		);
 	}
 
 	let html = await response.text();
@@ -432,7 +455,7 @@ type WebFetchDetails = {
 	error?: string;
 };
 
-async function fetchWebPage(
+export async function fetchWebPage(
 	url: string,
 	format: "markdown" | "text" | "html",
 	selector: string | undefined,
@@ -516,7 +539,7 @@ type WebSearchDetails = {
 /**
  * Search using DuckDuckGo HTML interface
  */
-async function searchDuckDuckGo(
+export async function searchDuckDuckGo(
 	query: string,
 	numResults: number,
 	signal: AbortSignal | undefined,
