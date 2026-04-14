@@ -1,13 +1,14 @@
 # pi-web-browse
 
-Web browsing tools for [pi](https://shittycodingagent.ai) - fetch pages and search the web.
+Web browsing tools for [pi](https://shittycodingagent.ai) — fetch pages and search the web.
 
 ## Features
 
-- **web_fetch** - Fetch and extract content from web pages as markdown, text, or HTML
-- **web_search** - Search the web using DuckDuckGo (no API key required)
+- **web_fetch** — Fetch and extract content as markdown, text, or HTML
+- **web_search** — Pluggable search with Brave / Serper / Tavily / DuckDuckGo
 - Optional **Firecrawl API** integration for superior content extraction
-- Session history tracking with `/web-history` command
+- Hardened `fetch`: SSRF protection, timeouts, body size caps, redirect limits
+- Session history with `/web-history` and status via `/web-status`
 
 ## Installation
 
@@ -26,56 +27,44 @@ pi install /path/to/pi-web-browse
 pi install git:github.com/yourusername/pi-web-browse
 ```
 
-## Usage
-
-Once installed, two new tools are available to the agent:
+## Tools
 
 ### web_fetch
 
-Fetch content from a URL:
-
-```
-Fetch the React documentation from https://react.dev/learn/thinking-in-react
-```
-
-The agent will use the `web_fetch` tool to extract the content as markdown.
+Fetch content from a URL.
 
 Parameters:
-- `url` - The URL to fetch (required)
-- `format` - Output format: `"markdown"` (default), `"text"`, or `"html"`
-- `selector` - CSS selector to extract specific content (e.g., `"article"`, `".content"`)
-- `maxLength` - Maximum characters to return (default: 10000)
-- `useFirecrawl` - Use Firecrawl API (default: true if key is available)
+- `url` — URL to fetch (required; http/https only)
+- `format` — `"markdown"` (default), `"text"`, or `"html"`
+- `selector` — CSS selector for local extraction only (e.g. `"article"`, `".content"`)
+- `maxLength` — max characters returned (default: 10000)
+- `useFirecrawl` — prefer Firecrawl (default: true when key is available)
 
 ### web_search
 
-Search the web:
-
-```
-Search for "React Server Components best practices"
-```
+Search the web.
 
 Parameters:
-- `query` - The search query (required)
-- `numResults` - Number of results (default: 5, max: 10)
+- `query` — search query (required)
+- `numResults` — 1–10 (default: 5)
+- `provider` — `"brave"`, `"serper"`, `"tavily"`, or `"duckduckgo"` (optional)
+
+## Search providers
+
+Providers are preferred in this order, and the first with a configured API key is used. DuckDuckGo has no key and is the keyless fallback (but scrapes HTML, so it can break at any time).
+
+| Provider   | Env var           | Signup                       |
+|------------|-------------------|------------------------------|
+| Brave      | `BRAVE_API_KEY`   | https://brave.com/search/api |
+| Serper     | `SERPER_API_KEY`  | https://serper.dev           |
+| Tavily     | `TAVILY_API_KEY`  | https://tavily.com           |
+| DuckDuckGo | — (scraper)       | —                            |
+
+You can force a specific provider via the `provider` argument, but the call will fail if that provider's key is not set.
 
 ## Configuration
 
-This extension reads configuration from `~/.pi/agent/web-browse.json`. Create this file to persist settings across pi sessions.
-
-### Config File Location
-
-```
-~/.pi/agent/web-browse.json
-```
-
-### Available Options
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `firecrawlApiKey` | `string` | Your Firecrawl API key for superior content extraction |
-
-### Example Config
+`~/.pi/agent/web-browse.json` holds settings that persist across sessions:
 
 ```json
 {
@@ -83,57 +72,46 @@ This extension reads configuration from `~/.pi/agent/web-browse.json`. Create th
 }
 ```
 
-### API Key Resolution Order
-
-The extension looks for the Firecrawl API key in this order:
-
+### Firecrawl key resolution order
 1. `FIRECRAWL_API_KEY` environment variable
 2. `firecrawlApiKey` in `~/.pi/agent/web-browse.json`
 
-If neither is set, the extension falls back to local extraction using cheerio + turndown.
+Without a key, `web_fetch` falls back to local extraction (cheerio + turndown).
 
-### Why Use a Config File?
+> Search provider keys (`BRAVE_API_KEY`, `SERPER_API_KEY`, `TAVILY_API_KEY`) are read from environment variables only. Export them in your shell profile.
 
-The config file is the most convenient option because:
-- It persists across pi sessions
-- No need to edit shell profiles (`.zshrc`, `.bashrc`, etc.)
-- No need to remember to export env vars before starting pi
-- Keeps API keys separate from pi's core `settings.json`
+## Safety
 
-## Firecrawl Integration (Recommended)
+`web_fetch` requests go through a hardened fetch wrapper:
+- **Protocol allowlist**: http / https only
+- **SSRF**: resolves DNS, blocks loopback, link-local, RFC1918, CGNAT, IPv4/IPv6 private ranges, and validates every redirect hop
+- **Timeout**: 30 seconds per request
+- **Body cap**: 5 MB (response is truncated beyond that)
+- **Redirects**: up to 5, then rejected
 
-For the best content extraction quality, sign up for a free API key at [firecrawl.dev](https://www.firecrawl.dev/).
+Limitations: DNS rebinding is not fully prevented (lookup and connect happen separately). For high-assurance environments, route pi through a vetted egress proxy.
 
-### What Firecrawl Provides
-- Superior HTML-to-markdown conversion
-- Better handling of JavaScript-rendered pages
-- Cleaner extraction of article content
-- Removes ads and navigation clutter automatically
-
-Without Firecrawl, the extension falls back to local extraction using cheerio + turndown.
+For testing only, set `PI_WEB_BROWSE_UNSAFE_DISABLE_SSRF=1` to bypass SSRF checks. Do not enable this in production.
 
 ## Commands
 
-- `/web-history` - Show recent web browsing activity from the current session
-- `/web-status` - Show extension status, config file path, and Firecrawl configuration
-
-Run `/web-status` to verify your config file is being read correctly.
+- `/web-history` — recent browsing activity in the current session
+- `/web-status` — extension status, config path, provider availability
+- `/web-status --reveal` — also print the full Firecrawl API key (masked by default)
 
 ## Example Workflows
 
-### Research a topic
+Research:
 ```
 Search for "Rust async runtime comparison"
 ```
 
-The agent will search and can then fetch the most relevant results for detailed reading.
-
-### Read documentation
+Read docs:
 ```
-Fetch the guide at https://docs.example.com/getting-started
+Fetch https://docs.example.com/getting-started
 ```
 
-### Extract specific content
+Extract a section:
 ```
 Fetch the API reference from https://api.example.com/docs using selector "#api-reference"
 ```
